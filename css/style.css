@@ -1,0 +1,47 @@
+body{
+    background: url(../images/bg.jpg) center top no-repeat;
+    font-size: 12px;
+    font-family: Tahoma, Geneva, sans-serif;
+    color: #333;
+    margin: 0px;
+    padding: 0px;
+
+}
+.swap{
+    width: 90%;
+    margin: 15px auto 0px auto;
+}
+.header {
+    position: relative;
+    margin: 0px;
+    padding: 0px;
+    width: 100%;
+}
+.logo {
+    float: left;
+    margin-right: 25px;
+}
+.logo img{
+    width: 130px;
+}
+.slogan{
+    padding-top: 10px;
+}
+.slogan img{
+    width: 750px;
+}
+.content{
+    padding-top: 30px;
+
+}
+.tab-content{
+    padding-top: 20px;
+}
+.line{
+    padding-bottom: 15px;
+}
+
+#skill-person span{
+    padding: 10px;
+    margin: 10px;
+}

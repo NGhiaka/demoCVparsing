@@ -1,0 +1,205 @@
+<html>
+<head>
+ <script type="text/javascript" src="js/daxtra_cvx.js"></script>
+ <script type="text/javascript" src="js/jquery.min.js"></script>
+</head>
+<body>
+
+<!-- intial upload form -->
+<div id="submit_div">
+  <span id='message_file'></span>
+  <input type='file' id='file_upload'  /> <br />
+  <input type='button' value='Fill Application Form' onclick='fillAppForm("file_upload", 0)'/><br/>
+  <input type='button' value='Faster Application Form' onclick='fillAppForm("file_upload", 1)'/><br/>
+</div>
+
+<!-- intermediate message -->
+<div id="wait_div"  style="display:none">
+  <span id='message_wait'>Wait for profile to be processed</span>
+</div>
+
+<!-- profile form -->
+<div id="profile_div" style="display:none">
+  <label>Name:</label>&nbsp;<input type='text'  name='full_name' id='full_name'  size=20 value='' /><br/>
+  <br/>
+
+  <label>Sex:</label>&nbsp;<input type='radio' name='sex' id='sex_m' value='M' />M&nbsp;&nbsp;
+                         <input type='radio' name='sex' id='sex_f' value='F' />F <br/>
+  <br/>
+
+  <label>Country:</label>&nbsp;
+  <select name='country' id='country'>
+     <option value="">Select Country</option>
+     <option value="GB">Great Britain</option>
+     <option value="US">United States</option>
+     <option value="CA">Canada</option>
+     <option value="AU">Australia</option>
+     <option value="EU">European Union</option>
+     <option value="XX">Other</option>
+  </select>
+  <br/>
+
+  <label>Nationality:</label>&nbsp;
+  <input type="checkbox" name="nationality" id="natinality_uk" value="GB">UK&nbsp;&nbsp;
+  <input type="checkbox" name="nationality" id="natinality_us" value="US">US&nbsp;&nbsp;
+  <input type="checkbox" name="nationality" id="natinality_ca" value="CA">CA&nbsp;&nbsp;
+  <input type="checkbox" name="nationality" id="natinality_au" value="AU">AU&nbsp;&nbsp;
+  <input type="checkbox" name="nationality" id="natinality_eu" value="EU">EU&nbsp;&nbsp;
+  <input type="checkbox" name="nationality" id="natinality_xx" value="XX">Other<br>
+  <br/>
+
+  <label>Job Title:</label>&nbsp;<span id='last_job_tite'></span>
+
+</div>
+
+
+
+<script type="text/javascript">
+//<![CDATA[
+
+var cvx_server = "http://cvxdemo.daxtra.com"; //"http://xtr1.infogistics.com";
+var account = "TMA";
+
+function fillAppForm(file_upload_id, split_phase)
+{
+  document.querySelector('#message_file').innerHTML = "";
+  
+  daxtra_cvx.init(cvx_server, account);
+
+  var params = {mapping_phase_1: cvx_mapping_1_json, mapping_phase_2: cvx_mapping_2_json}; 
+  if(!split_phase) {
+    daxtra_cvx.parse_cv_upload_file(file_upload_id, fill_my_application_form, params);
+  }
+  else {
+    daxtra_cvx.parse_cv_upload_file_split_phase(file_upload_id, fill_my_application_form, params);
+  }
+
+  if(daxtra_cvx.getLastError()) {
+     daxtra_form_populator.setValueOnFormElement(
+            document.querySelector('#message_file'), 
+            daxtra_cvx.getLastErrorDescription()
+     );
+  }
+  else {
+    document.querySelector("#submit_div").style.display="none";
+    document.querySelector("#wait_div").style.display="block";
+  }
+
+  return false;
+}
+
+function fill_my_application_form(profile, params)
+{
+  //-- in phase 1 we had the form partially filled already - so will be silent on error
+  var do_silent = (params.action == "data") ? 1 : 0;
+
+  if(profile.Resume) 
+  {
+      document.querySelector("#wait_div").style.display="none";
+      document.querySelector("#profile_div").style.display="block";
+      var fieldsSet;  
+      if(params.action=="profile/personal/json") 
+      {
+        fieldsSet = daxtra_form_populator.execute(profile, params.mapping_phase_1);
+      }
+      else if(params.action == "data") 
+      {
+        fieldsSet = daxtra_form_populator.execute(profile, params.mapping_phase_2); 
+      }
+      else if(params.action == "profile/full/json") 
+      {
+        fieldsSet = daxtra_form_populator.execute(profile, params.mapping_phase_1);
+        fieldsSet = daxtra_form_populator.execute(profile, params.mapping_phase_2);
+      }
+      else {
+        //- shouldn't be here!!
+     }
+  }
+  else if(profile.CSERROR) //-- report error and exit
+  {
+     cvx_failed(profile.CSERROR.message, profile.CSERROR.code, do_silent);
+  }
+  else { //-- shouldn't be here anyway
+     cvx_failed("unknown error", "00", do_silent);
+  } 
+}
+
+function cvx_failed(statusText, status, silent) {
+   var msg = statusText; 
+   if(status) { msg += " (" +   status + ")"; }
+   if(silent) {
+      console.log(msg);
+   }
+   else {
+      daxtra_form_populator.setValueOnFormElement(document.querySelector('#message_wait'), msg);
+   }
+}
+
+
+
+var cvx_mapping_1_json = { bindings: [ 
+  //-- example of simple string set to an input
+  {html_field:"#full_name", prf_field:"Resume.StructuredResume.PersonName.FormattedName"},
+  //-- example of radio. profile value needs to be mapped to radio values
+  {html_field:"input[name=sex]", prf_field:"StructuredResume.PersonName.sex",
+   transform:function(val) {
+     if(val=="Male") return "M";
+     if(val=="Female") return "F";
+     return;
+   }
+  },
+  //-- example of select. profile value needs to be mapped to select options  values
+  {html_field:"#country", prf_field:"Resume.StructuredResume.PostalAddress_main.CountryCode",
+   transform:function(val) {
+     return  mapCountry(val);
+   }
+  },
+  //-- example of check box. profile value needs to be mapped to radio values
+  {html_field:"input[name=nationality]", prf_field:"Resume.StructuredResume.Nationality[0]",
+   transform:function(val) {
+     return  mapCountry(val);
+   }
+  },
+  {html_field:"input[name=nationality]", prf_field:"Resume.StructuredResume.Nationality[1]",
+   transform:function(val) {
+     return  mapCountry(val);
+   }
+  }
+ ]
+};
+
+var cvx_mapping_2_json = {
+ bindings: [ 
+  //-- example of combining multiple values from profile 
+  {html_field:"#last_job_tite", 
+   prf_field_array:[
+         "Resume.StructuredResume.EmploymentHistory.EmployerOrg[0].Title[0]",
+         "Resume.StructuredResume.EmploymentHistory.EmployerOrg[0].Title[1]"
+   ],
+   transform:function(val_array) {
+     var val=""; 
+     for(var j=0; j<val_array.length; j++) {
+       if(!val_array[j]) continue; //- can be empty values
+       if(val) val += " / ";       //- for each item in prf_field_array
+       val += val_array[j];
+     }
+     return val;
+   }
+  }
+
+ ]  
+};
+
+function mapCountry(val)
+{
+    if(val=="UK") return "GB";
+    if(val=="IT" || val=="FR" || val=="DE" || val=="ES") return "EU";
+    if(val != "US" && val != "AU" && val != "CA" && val != "EU" && val != "GB") return "XX"; 
+    return val;
+}
+
+//]]>
+</script>
+
+</body>
+</html>
